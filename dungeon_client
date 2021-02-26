@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# pylint: disable=W1203
+
+'''
+    ICE Gauntlet LOCAL GAME
+'''
+
+import sys
+import atexit
+import Ice
+Ice.loadSlice('icegauntlet.ice')
+# pylint: disable=E0401
+# pylint: disable=C0413
+import IceGauntlet
+import game
+import game.common
+import game.screens
+import game.pyxeltools
+import game.orchestration
+
+EXIT_OK = 0
+BAD_COMMAND_LINE = 1
+DEFAULT_ROOM = 'tutorial.json'
+DEFAULT_HERO = game.common.HEROES[0]
+
+@atexit.register
+# pylint: disable=W0613
+def bye(*args, **kwargs):
+    '''Exit callback, use for shoutdown'''
+    print('Thanks for playing!')
+# pylint: enable=W0613
+
+class main(Ice.Application):
+    ''' MAIN '''
+    def run(self, argv):
+        '''Start game according to commandline'''
+        try:
+            proxy_comm = self.communicator().stringToProxy(argv[1])
+            dungeon = IceGauntlet.DungeonPrx.checkedCast(proxy_comm)
+            if not dungeon:
+                raise RuntimeError('Invalid proxy')
+        except ValueError:
+            sys.exit(1)
+        game.pyxeltools.initialize()
+        dungeon_room = RemoteDungeonMap(dungeon)
+        gauntlet = game.Game(DEFAULT_HERO, dungeon_room)
+        gauntlet.add_state(game.screens.TileScreen, game.common.INITIAL_SCREEN)
+        gauntlet.add_state(game.screens.StatsScreen, game.common.STATUS_SCREEN)
+        gauntlet.add_state(game.screens.GameScreen, game.common.GAME_SCREEN)
+        gauntlet.add_state(game.screens.GameOverScreen, game.common.GAME_OVER_SCREEN)
+        gauntlet.add_state(game.screens.GoodEndScreen, game.common.GOOD_END_SCREEN)
+        gauntlet.start()
+        return EXIT_OK
+
+class RemoteDungeonMap(IceGauntlet.Dungeon):
+    ''' Remote Dungeon Map '''
+    def __init__(self, dungeon):
+        self.dungeon = dungeon
+    @property
+    def next_room(self):
+        ''' NEXT ROOM '''
+        room = self.dungeon.getRoom()
+        return room
+    @property
+    def finished(self):
+        ''' FINISHED '''
+        return False
+
+if __name__ == '__main__':
+    app = main()
+    sys.exit(app.main(sys.argv))

@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+
+'''
+Script to run authentication user
+'''
+
+import os
+import sys
+
+try:
+    import pexpect
+except ImportError:
+    print('Required library "pexpect" not exists. Install with pip and try again')
+    sys.exit(1)
+
+# Define command to request new token
+_COMMAND_ = 'python3 ./auth_client.py -t %(USER)s "%(auth_proxy)s"'
+
+# Message used by authentication client when asking for a password
+_PASSWORD_MESSAGE_ = 'Introduce el password:'
+_TIMEOUT_FOR_MESSAGE_ = 15
+
+# Get required arguments
+try:
+    USER, PASSWORD, PROXY = sys.argv[1:]
+except ValueError:
+    print('Command arguments: {} <USER> <PASSWORD> <PROXY>'.format(
+        os.path.basename(sys.argv[0]))
+        )
+    sys.exit(1)
+
+# Compose command
+FINAL_COMMAND = _COMMAND_ % {
+    'USER': USER,
+    'auth_proxy': PROXY
+}
+
+# Run command
+PROC = pexpect.spawn(FINAL_COMMAND, echo=False)
+# Wait for client to ask for password
+FOUND = PROC.expect(
+    [_PASSWORD_MESSAGE_, pexpect.TIMEOUT, pexpect.EOF], timeout=_TIMEOUT_FOR_MESSAGE_
+)
+if FOUND == 0:
+    # Enter password
+    PROC.sendline(PASSWORD)
+    # Wait end
+    PROC.expect([pexpect.EOF])
+else:
+    # Client execution failed
+    print('ERROR: authentication command does not ask for password after {} seconds'.format(
+        _TIMEOUT_FOR_MESSAGE_
+    ))
+    sys.exit(1)
+
+# Show command output and exit
+print(PROC.before.decode().strip())
+sys.exit(0)
