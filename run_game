@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+'''
+script de run game
+'''
+import os
+import sys
+PROXY = sys.argv[1]
+os.system("python3 ./dungeon_client "+"'"+PROXY+"'")
